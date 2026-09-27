@@ -34,10 +34,16 @@ int parse_request(char *recv_buf, struct request *req) {
 	sscanf(recv_buf, "%s %s %s\n", req->req_line.method, req->req_line.target, req->req_line.version);
 }
 
-int print_request_line(struct request *req) {
+int print_request(struct request *req) {
 	printf("%s %s %s\n", req->req_line.method, req->req_line.target, req->req_line.version);
 }
 
+/*
+int print_status(struct status *stat) {
+	printf("%s %s %s\n", stat->version, stat->status, stat->reason_phrase);
+}
+
+*/
 int send_status_line(int sockfd, struct status *stat) {
 	char sendbuf[1024];
 	memset(sendbuf, 0, sizeof(sendbuf));
@@ -47,13 +53,14 @@ int send_status_line(int sockfd, struct status *stat) {
 	send(sockfd, sendbuf, sizeof(sendbuf), 0);
 }
 
+// receive data into buffer, parse it with parse_request()
 void handle_connection(int sockfd) {
-	// receive data into buffer, parse it with parse_request()
 	char buf[1024];
 	memset(buf, 0, sizeof(buf));
 	recv(sockfd, buf, sizeof(buf), 0);
 
 	struct request *req = (struct request *) malloc(REQUEST_SIZE); // why not sizeof(struct request *)?
+								       // why malloc?
 	memset(req, 0, sizeof(req));
 	parse_request(buf, req);
 

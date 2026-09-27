@@ -8,7 +8,7 @@
 #include "http.h"
 
 int main(void) {
-	int listener = listener_init("192.168.64.2", 3005, 10);
+	int listener = listener_init("127.0.0.1", 3005, 10);
 
 	struct sockaddr conn_addr;
 	socklen_t conn_addr_size = sizeof(conn_addr);
@@ -17,6 +17,7 @@ int main(void) {
 		connected_fd = accept(listener, &conn_addr, &conn_addr_size);
 
 		handle_connection(connected_fd);
+		close(connected_fd);
 	}
 
 	close(listener);
