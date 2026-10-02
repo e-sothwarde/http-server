@@ -30,26 +30,28 @@ int listener_init(char *ip, int port, int backlog) {
 	return listen_fd;
 }
 
-int parse_request(char *recv_buf, struct request *req) {
-	sscanf(recv_buf, "%s %s %s\n", req->req_line.method, req->req_line.target, req->req_line.version);
-}
-
-int print_request(struct request *req) {
-	printf("%s %s %s\n", req->req_line.method, req->req_line.target, req->req_line.version);
-}
-
-/*
-int print_status(struct status *stat) {
-	printf("%s %s %s\n", stat->version, stat->status, stat->reason_phrase);
-}
-
-*/
-int send_status_line(int sockfd, struct status *stat) {
+int send_status(int sockfd, struct status *stat) {
+	// intermittent segfault on 404?
 	char sendbuf[1024];
+	char *sendbuf_ptr = sendbuf;
 	memset(sendbuf, 0, sizeof(sendbuf));
 
 	struct status_line sl = stat->stat_line;
-	sprintf(sendbuf, "%s %s %s\n", sl.version, sl.status, sl.reason_phrase);
+	sprintf(sendbuf_ptr, "%s %s %s\n", sl.version, sl.status, sl.reason_phrase);
+	sendbuf_ptr += sizeof(sl);
+
+	if (strlen(stat->field_str) != 0) {
+		sprintf(sendbuf_ptr, "%s\n", stat->field_str);
+		printf("%s\n", sendbuf);
+	}
+	sendbuf_ptr += strlen(stat->field_str);
+
+	if (stat->body != NULL) {
+		sprintf(sendbuf_ptr, "%s\n", stat->body);
+		sendbuf_ptr += sizeof(stat->body);
+	}
+
+	printf("Sending:\n%.1024s\n", sendbuf);
 	send(sockfd, sendbuf, sizeof(sendbuf), 0);
 }
 
@@ -64,10 +66,13 @@ void handle_connection(int sockfd) {
 	memset(req, 0, sizeof(req));
 	parse_request(buf, req);
 
-	struct status *stat = (struct status *) malloc(STATUS_SIZE); 
-	handle_request(req, stat); // passes request to http module
+	// roll into stat_init function?
+	//struct status *stat = (struct status *) malloc(1024); 
+	struct status stat;
+	strcpy(stat.field_str, "");
+	select_method(req, &stat); // passes request to http module
 
-	send_status_line(sockfd, stat);
+	send_status(sockfd, &stat);
 
 	free(req);
 }
