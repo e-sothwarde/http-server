@@ -1,2 +1,0 @@
-main: src/networking.c src/http.c src/test.c
-	gcc src/networking.c src/http.c src/test.c -o bin/test
