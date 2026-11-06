@@ -38,21 +38,36 @@ int send_status(int sockfd, struct status *stat) {
 
 	struct status_line sl = stat->stat_line;
 	sprintf(sendbuf_ptr, "%s %s %s\n", sl.version, sl.status, sl.reason_phrase);
-	sendbuf_ptr += sizeof(sl);
 
-	if (strlen(stat->field_str) != 0) {
+	int sl_size = get_str_size(sl.version) + get_str_size(sl.status) + get_str_size(sl.reason_phrase);
+	sendbuf_ptr += sl_size;
+
+	if (stat->field_str != NULL) {
 		sprintf(sendbuf_ptr, "%s\n", stat->field_str);
-		printf("%s\n", sendbuf);
+		sendbuf_ptr += get_str_size(stat->field_str);
 	}
-	sendbuf_ptr += strlen(stat->field_str);
 
 	if (stat->body != NULL) {
-		sprintf(sendbuf_ptr, "%s\n", stat->body);
-		sendbuf_ptr += sizeof(stat->body);
+		sprintf(sendbuf_ptr, "\n%s\n", stat->body);
+		sendbuf_ptr += get_str_size(stat->body);
 	}
 
-	printf("Sending:\n%.1024s\n", sendbuf);
-	send(sockfd, sendbuf, sizeof(sendbuf), 0);
+	//printf("Sending:-%s-", sendbuf);
+	send(sockfd, sendbuf, get_str_size(sendbuf) * sizeof(char), 0); // only send required bytes
+	return 0;
+}
+
+void free_request(struct request *req) {
+	free(req->req_line.method);
+	free(req->req_line.target);
+	free(req->req_line.version);
+}
+
+void free_status(struct status *stat) {
+	free(stat->stat_line.version);
+	free(stat->stat_line.status);
+	free(stat->stat_line.reason_phrase);
+	free(stat->field_str);
 }
 
 // receive data into buffer, parse it with parse_request()
@@ -61,18 +76,25 @@ void handle_connection(int sockfd) {
 	memset(buf, 0, sizeof(buf));
 	recv(sockfd, buf, sizeof(buf), 0);
 
-	struct request *req = (struct request *) malloc(REQUEST_SIZE); // why not sizeof(struct request *)?
-								       // why malloc?
-	memset(req, 0, sizeof(req));
-	parse_request(buf, req);
+	struct request req;
+	//init_request(&req);
+	struct request_line rl;
+	memset(&rl, 0, sizeof(rl));
+	parse_request(buf, &(rl)); 
+	req.req_line = rl;
 
 	// roll into stat_init function?
-	//struct status *stat = (struct status *) malloc(1024); 
 	struct status stat;
-	strcpy(stat.field_str, "");
-	select_method(req, &stat); // passes request to http module
+	memset(&stat, 0, sizeof(stat));
+	//init_status(&stat);
+	select_method(&req, &stat); // passes request to http module
 
 	send_status(sockfd, &stat);
-
-	free(req);
+	// put these info funcs
+	free_request(&req);
+	free_status(&stat);
+	/*
+	free(req.body);
+	free(stat.body);
+	*/
 }

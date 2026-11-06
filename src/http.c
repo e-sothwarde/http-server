@@ -9,8 +9,54 @@
 
 #define RSC_PATH "/home/user/programming/http-server/rsc"
 
-int parse_request(char *recv_buf, struct request *req) {
-	sscanf(recv_buf, "%s %s %s\n", req->req_line.method, req->req_line.target, req->req_line.version);
+int init_request(struct request *req) {
+	req->req_line.method = malloc(0);
+	req->req_line.target = malloc(0);
+	req->req_line.version = malloc(0);
+
+	req->body = malloc(0);
+}
+
+int init_status(struct status *stat) {
+	stat->stat_line.version = malloc(0);
+	stat->stat_line.status = malloc(0);
+	stat->stat_line.reason_phrase = malloc(0);
+
+	stat->field_str = malloc(0);
+	stat->body = malloc(0);
+}
+
+ // returns length of string in bytes
+int get_str_size(char *str) {
+	int i = 0;
+	while (str[i] != '\0') {
+		i++;}
+	return i+1;
+}
+
+ // resizes dest and copies src into it
+ // add error checking here
+int set_str(char **dest, char *src) {
+	int str_size = get_str_size(src);
+	char *tmp;
+	tmp = malloc(str_size);
+	/*
+	if (*dest == NULL) {
+		tmp = malloc(str_size);
+	} else {
+		tmp = realloc(*dest, str_size);
+	}
+	*/
+	*dest = tmp;
+	strcpy(*dest, src);
+}
+
+int parse_request(char *recv_buf, struct request_line *rl) {
+	char method[256], target[256], version[256];
+	sscanf(recv_buf, "%s %s %s\n", method, target, version);
+	set_str(&(rl->method), method);
+	set_str(&(rl->target), target);
+	set_str(&(rl->version), version);
 }
 
 int print_request(struct request *req) {
@@ -31,13 +77,13 @@ int get(struct request *req, struct status *stat) {
 	
 	sprintf(target_path, "%s%s", RSC_PATH, req->req_line.target);
 	//printf("GET %s\n", target);
-	
+
 	struct status_line sl = stat->stat_line;
 
 	int fd = open(target_path, 0);
 	if (fd == -1) {
-		strcpy(sl.status, "404");
-		strcpy(sl.reason_phrase, "Page Not Found");
+		set_str(&(sl.status), "404");
+		set_str(&(sl.reason_phrase), "Page Not Found");
 		stat->stat_line = sl;
 		return 0;
 	}
@@ -50,14 +96,15 @@ int get(struct request *req, struct status *stat) {
 	//stat->body = malloc(buf_size);
 
 	// fill start line
-	strcpy(sl.status, "200");
-	strcpy(sl.reason_phrase, "Success");
+	set_str(&(sl.status), "200");
+	set_str(&(sl.reason_phrase), "Success");
 	stat->stat_line = sl;
 
 	// fill header fields
-	strcpy(stat->field_str, "Content-Type: text/html");
+	set_str(&(stat->field_str), "Content-Type: text/html");
 	
 	// fill body section
+	stat->body = malloc(buf_size);
 	while (read(fd, (stat->body+offset), 8) != 0) {
 		offset += 8;
 		if (offset == buf_size) {
@@ -71,13 +118,13 @@ int get(struct request *req, struct status *stat) {
 }
 
 int select_method(struct request *req, struct status *stat) {
-	struct request_line rl = req->req_line;
-	strcpy(stat->stat_line.version, "HTTP/1.1");
+	set_str(&(stat->stat_line.version), "HTTP/1.1");
 
+	struct request_line rl = req->req_line;
 	if (!strcmp(rl.method, "GET")) {
 		get(req, stat);
 	} else {
-		strcpy(stat->stat_line.status, "501");
-		strcpy(stat->stat_line.reason_phrase, "Not Implemented");
+		set_str(&(stat->stat_line.status), "501");
+		set_str(&(stat->stat_line.reason_phrase), "Not Implemented");
 	}
 }

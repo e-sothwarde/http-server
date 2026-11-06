@@ -6,9 +6,9 @@
 #define STAT_LINE_SIZE = 63
 
 struct request_line { // size 68
-	char method[METHOD_SIZE];
-	char target[TARGET_SIZE];
-	char version[VERSION_SIZE];
+	char *method;
+	char *target;
+	char *version;
 };
 
 struct request {
@@ -18,9 +18,9 @@ struct request {
 };
 
 struct status_line { 
-	char version[VERSION_SIZE];
-	char status[STATUS_SIZE];
-	char reason_phrase[REASON_SIZE];
+	char *version;
+	char *status;
+	char *reason_phrase;
 };
 
 /*
@@ -32,12 +32,20 @@ struct field {
 
 struct status { // 1152
 	struct status_line stat_line;
-	char field_str[64];
-	char body[512];
+	char *field_str;
+	char *body;
 };
 
+int init_request(struct request *req);
+
+int init_status(struct status *stat);
+
+int get_str_size(char *str); // returns length of string in bytes
+
+int set_str(char **dest, char *src); // resizes dest and copies src into it
+
 // parses recv buffer into request struct
-int parse_request(char *recv_buf, struct request *req);
+int parse_request(char *recv_buf, struct request_line *rl);
 
 // prints request line
 int print_request(struct request *req);
